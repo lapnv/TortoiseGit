@@ -64,7 +64,7 @@ bool DiffCommand::Execute()
 					CBlockCacheForPath cacheBlock(topDir);
 					CAutoIndex index;
 					CString adminDir;
-					GitAdminDir::GetAdminDirPath(topDir, adminDir);
+					GitAdminDir::GetWorktreeAdminDirPath(topDir, adminDir);
 					if (!git_index_open(index.GetPointer(), CUnicodeUtils::GetUTF8(adminDir + L"index")))
 						g_Git.Run(L"git.exe update-index -- \"" + cmdLinePath.GetGitPathString() + L'"', nullptr); // make sure we get the right status
 					GitStatus::GetFileStatus(topDir, cmdLinePath.GetWinPathString(), &status, true);
