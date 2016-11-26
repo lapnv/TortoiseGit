@@ -2015,7 +2015,7 @@ void CGitStatusListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 
 			case IDGITLC_RESTOREPATH:
 				{
-					if (CMessageBox::Show(m_hWnd, IDS_STATUSLIST_RESTOREPATH, IDS_APPNAME, 2, IDI_QUESTION, IDS_RESTOREBUTTON, IDS_ABORTBUTTON) == 2)
+					if (CMessageBox::Show(GetSafeOwner()->GetSafeHwnd(), IDS_STATUSLIST_RESTOREPATH, IDS_APPNAME, 2, IDI_QUESTION, IDS_RESTOREBUTTON, IDS_ABORTBUTTON) == 2)
 						break;
 					POSITION pos = GetFirstSelectedItemPosition();
 					while (pos)
@@ -2199,7 +2199,7 @@ void CGitStatusListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 
 			case IDGITLC_EDITCONFLICT:
 				{
-					if (CAppUtils::ConflictEdit(*filepath, bShift, m_bIsRevertTheirMy, GetLogicalParent() ? GetLogicalParent()->GetSafeHwnd() : nullptr))
+					if (CAppUtils::ConflictEdit(GetSafeOwner()->GetSafeHwnd(), *filepath, bShift, m_bIsRevertTheirMy, GetLogicalParent() ? GetLogicalParent()->GetSafeHwnd() : nullptr))
 					{
 						CString conflictedFile = g_Git.CombinePath(filepath);
 						if (!PathFileExists(conflictedFile) && GetLogicalParent() && GetLogicalParent()->GetSafeHwnd())
@@ -2217,7 +2217,7 @@ void CGitStatusListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 			case IDGITLC_RESOLVEMINE:   //follow up
 			case IDGITLC_RESOLVECONFLICT:
 				{
-					if (CMessageBox::Show(m_hWnd, IDS_PROC_RESOLVE, IDS_APPNAME, MB_ICONQUESTION | MB_YESNO)==IDYES)
+					if (CMessageBox::Show(GetSafeOwner()->GetSafeHwnd(), IDS_PROC_RESOLVE, IDS_APPNAME, MB_ICONQUESTION | MB_YESNO) == IDYES)
 					{
 						bool needsFullRefresh = false;
 						POSITION pos = GetFirstSelectedItemPosition();
@@ -2234,7 +2234,7 @@ void CGitStatusListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 								resolveWith = CAppUtils::RESOLVE_WITH_THEIRS;
 							else if (((!this->m_bIsRevertTheirMy) && cmd == IDGITLC_RESOLVEMINE) || ((this->m_bIsRevertTheirMy) && cmd == IDGITLC_RESOLVETHEIRS))
 								resolveWith = CAppUtils::RESOLVE_WITH_MINE;
-							if (CAppUtils::ResolveConflict(*fentry, resolveWith) == 0 && fentry->m_Action & CTGitPath::LOGACTIONS_UNMERGED)
+							if (CAppUtils::ResolveConflict(GetSafeOwner()->GetSafeHwnd(), *fentry, resolveWith) == 0 && fentry->m_Action & CTGitPath::LOGACTIONS_UNMERGED)
 								needsFullRefresh = true;
 						}
 						if (needsFullRefresh && CRegDWORD(L"Software\\TortoiseGit\\RefreshFileListAfterResolvingConflict", TRUE) == TRUE)
@@ -2257,7 +2257,7 @@ void CGitStatusListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 					//std::vector<CString> toremove;
 					FillListOfSelectedItemPaths(ignorelist, true);
 
-					if(!CAppUtils::IgnoreFile(ignorelist,false))
+					if (!CAppUtils::IgnoreFile(GetSafeOwner()->GetSafeHwnd(), ignorelist, false))
 						break;
 
 					SetRedraw(FALSE);
@@ -2277,7 +2277,7 @@ void CGitStatusListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 					CTGitPathList ignorelist;
 					FillListOfSelectedItemPaths(ignorelist, true);
 
-					if (!CAppUtils::IgnoreFile(ignorelist,true))
+					if (!CAppUtils::IgnoreFile(GetSafeOwner()->GetSafeHwnd(), ignorelist, true))
 						break;
 
 					SetRedraw(FALSE);
@@ -2296,7 +2296,7 @@ void CGitStatusListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 					CTGitPathList ignorelist;
 					ignorelist.AddPath(filepath->GetContainingDirectory());
 
-					if (!CAppUtils::IgnoreFile(ignorelist, false))
+					if (!CAppUtils::IgnoreFile(GetSafeOwner()->GetSafeHwnd(), ignorelist, false))
 						break;
 
 					SetRedraw(FALSE);
@@ -2548,7 +2548,7 @@ void CGitStatusListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 
 void CGitStatusListCtrl::SetGitIndexFlagsForSelectedFiles(UINT message, BOOL assumevalid, BOOL skipworktree)
 {
-	if (CMessageBox::Show(GetSafeHwnd(), message, IDS_APPNAME, MB_YESNO | MB_DEFBUTTON2 | MB_ICONQUESTION) != IDYES)
+	if (CMessageBox::Show(GetSafeOwner()->GetSafeHwnd(), message, IDS_APPNAME, MB_YESNO | MB_DEFBUTTON2 | MB_ICONQUESTION) != IDYES)
 		return;
 
 	CAutoRepository repository(g_Git.GetGitRepository());
@@ -2629,7 +2629,7 @@ void CGitStatusListCtrl::OnNMDblclk(NMHDR *pNMHDR, LRESULT *pResult)
 	}
 	if( file->m_Action&CTGitPath::LOGACTIONS_UNMERGED )
 	{
-		if (CAppUtils::ConflictEdit(*file, !!(GetAsyncKeyState(VK_SHIFT) & 0x8000), m_bIsRevertTheirMy, GetLogicalParent() ? GetLogicalParent()->GetSafeHwnd() : nullptr))
+		if (CAppUtils::ConflictEdit(GetSafeOwner()->GetSafeHwnd(), *file, !!(GetAsyncKeyState(VK_SHIFT) & 0x8000), m_bIsRevertTheirMy, GetLogicalParent() ? GetLogicalParent()->GetSafeHwnd() : nullptr))
 		{
 			CString conflictedFile = g_Git.CombinePath(file);
 			if (!PathFileExists(conflictedFile) && GetLogicalParent() && GetLogicalParent()->GetSafeHwnd())
@@ -2781,7 +2781,7 @@ void CGitStatusListCtrl::StartDiff(int fileindex)
 				}
 
 				if(g_Git.GetOneFile(m_CurrentVersion, file1, (CString&)merge.GetWinPathString()))
-					CMessageBox::Show(GetSafeHwnd(), IDS_STATUSLIST_FAILEDGETMERGEFILE, IDS_APPNAME, MB_OK | MB_ICONERROR);
+					CMessageBox::Show(GetSafeOwner()->GetSafeHwnd(), IDS_STATUSLIST_FAILEDGETMERGEFILE, IDS_APPNAME, MB_OK | MB_ICONERROR);
 
 				if(parent1>=0)
 				{
@@ -2789,7 +2789,7 @@ void CGitStatusListCtrl::StartDiff(int fileindex)
 					str.Format(L"%s^%d", (LPCTSTR)this->m_CurrentVersion, parent1 + 1);
 
 					if(g_Git.GetOneFile(str, file1, (CString&)mine.GetWinPathString()))
-						CMessageBox::Show(GetSafeHwnd(), IDS_STATUSLIST_FAILEDGETMERGEFILE, IDS_APPNAME, MB_OK | MB_ICONERROR);
+						CMessageBox::Show(GetSafeOwner()->GetSafeHwnd(), IDS_STATUSLIST_FAILEDGETMERGEFILE, IDS_APPNAME, MB_OK | MB_ICONERROR);
 				}
 
 				if(parent2>=0)
@@ -2798,7 +2798,7 @@ void CGitStatusListCtrl::StartDiff(int fileindex)
 					str.Format(L"%s^%d", (LPCTSTR)this->m_CurrentVersion, parent2 + 1);
 
 					if(g_Git.GetOneFile(str, file1, (CString&)theirs.GetWinPathString()))
-						CMessageBox::Show(GetSafeHwnd(), IDS_STATUSLIST_FAILEDGETMERGEFILE, IDS_APPNAME, MB_OK | MB_ICONERROR);
+						CMessageBox::Show(GetSafeOwner()->GetSafeHwnd(), IDS_STATUSLIST_FAILEDGETMERGEFILE, IDS_APPNAME, MB_OK | MB_ICONERROR);
 				}
 
 				if(parent1>=0 && parent2>=0)
@@ -2810,7 +2810,7 @@ void CGitStatusListCtrl::StartDiff(int fileindex)
 					if (!g_Git.Run(cmd, &output, nullptr, CP_UTF8))
 					{
 						if(g_Git.GetOneFile(output.Left(40), file1, (CString&)base.GetWinPathString()))
-							CMessageBox::Show(GetSafeHwnd(), IDS_STATUSLIST_FAILEDGETBASEFILE, IDS_APPNAME, MB_OK | MB_ICONERROR);
+							CMessageBox::Show(GetSafeOwner()->GetSafeHwnd(), IDS_STATUSLIST_FAILEDGETBASEFILE, IDS_APPNAME, MB_OK | MB_ICONERROR);
 					}
 				}
 				CAppUtils::StartExtMerge(!!(GetAsyncKeyState(VK_SHIFT) & 0x8000), base, theirs, mine, merge, L"BASE", L"REMOTE", L"LOCAL");
@@ -3216,7 +3216,7 @@ void CGitStatusListCtrl::OnNMReturn(NMHDR * /*pNMHDR*/, LRESULT *pResult)
 			StartDiffWC(index);
 		else if ((file->m_Action & CTGitPath::LOGACTIONS_UNMERGED))
 		{
-			if (CAppUtils::ConflictEdit(*file, !!(GetAsyncKeyState(VK_SHIFT) & 0x8000), m_bIsRevertTheirMy, GetLogicalParent() ? GetLogicalParent()->GetSafeHwnd() : nullptr))
+			if (CAppUtils::ConflictEdit(GetSafeOwner()->GetSafeHwnd(), *file, !!(GetAsyncKeyState(VK_SHIFT) & 0x8000), m_bIsRevertTheirMy, GetLogicalParent() ? GetLogicalParent()->GetSafeHwnd() : nullptr))
 			{
 				CString conflictedFile = g_Git.CombinePath(file);
 				needsRefresh = needsRefresh || !PathFileExists(conflictedFile);
@@ -4032,7 +4032,7 @@ void CGitStatusListCtrl::FilesExport()
 	// export all changed files to a folder
 	CBrowseFolder browseFolder;
 	browseFolder.m_style = BIF_EDITBOX | BIF_NEWDIALOGSTYLE | BIF_RETURNFSANCESTORS | BIF_RETURNONLYFSDIRS;
-	if (browseFolder.Show(GetSafeHwnd(), exportDir) != CBrowseFolder::OK)
+	if (browseFolder.Show(GetSafeOwner()->GetSafeHwnd(), exportDir) != CBrowseFolder::OK)
 		return;
 
 	POSITION pos = GetFirstSelectedItemPosition();
@@ -4060,7 +4060,7 @@ void CGitStatusListCtrl::FilesExport()
 			{
 				CString out;
 				out.Format(IDS_STATUSLIST_CHECKOUTFILEFAILED, (LPCTSTR)fd->GetGitPathString(), (LPCTSTR)m_CurrentVersion, (LPCTSTR)filename);
-				if (CMessageBox::Show(GetSafeHwnd(), g_Git.GetGitLastErr(out, CGit::GIT_CMD_GETONEFILE), L"TortoiseGit", 2, IDI_WARNING, CString(MAKEINTRESOURCE(IDS_IGNOREBUTTON)), CString(MAKEINTRESOURCE(IDS_ABORTBUTTON))) == 2)
+				if (CMessageBox::Show(GetSafeOwner()->GetSafeHwnd(), g_Git.GetGitLastErr(out, CGit::GIT_CMD_GETONEFILE), L"TortoiseGit", 2, IDI_WARNING, CString(MAKEINTRESOURCE(IDS_IGNOREBUTTON)), CString(MAKEINTRESOURCE(IDS_ABORTBUTTON))) == 2)
 					return;
 			}
 		}
@@ -4087,7 +4087,7 @@ void CGitStatusListCtrl::FileSaveAs(CTGitPath *path)
 		{
 			CString out;
 			out.Format(IDS_STATUSLIST_CHECKOUTFILEFAILED, (LPCTSTR)path->GetGitPathString(), (LPCTSTR)m_CurrentVersion, (LPCTSTR)filename);
-			CMessageBox::Show(GetSafeHwnd(), g_Git.GetGitLastErr(out, CGit::GIT_CMD_GETONEFILE), L"TortoiseGit", MB_OK);
+			CMessageBox::Show(GetSafeOwner()->GetSafeHwnd(), g_Git.GetGitLastErr(out, CGit::GIT_CMD_GETONEFILE), L"TortoiseGit", MB_OK);
 			return;
 		}
 	}
@@ -4150,7 +4150,7 @@ int CGitStatusListCtrl::RevertSelectedItemToVersion(bool parent)
 	{
 		if (GetLogicalParent() && GetLogicalParent()->GetSafeHwnd())
 			GetLogicalParent()->SendMessage(GITSLNM_NEEDSREFRESH);
-		CMessageBox::Show(GetSafeHwnd(), out, L"TortoiseGit", MB_OK);
+		CMessageBox::Show(GetSafeOwner()->GetSafeHwnd(), out, L"TortoiseGit", MB_OK);
 	}
 	return 0;
 }
@@ -4167,7 +4167,7 @@ void CGitStatusListCtrl::OpenFile(CTGitPath*filepath,int mode)
 		if(g_Git.GetOneFile(m_CurrentVersion, *filepath, file))
 		{
 			out.Format(IDS_STATUSLIST_CHECKOUTFILEFAILED, (LPCTSTR)filepath->GetGitPathString(), (LPCTSTR)m_CurrentVersion, (LPCTSTR)file);
-			CMessageBox::Show(GetSafeHwnd(), g_Git.GetGitLastErr(out, CGit::GIT_CMD_GETONEFILE), L"TortoiseGit", MB_OK);
+			CMessageBox::Show(GetSafeOwner()->GetSafeHwnd(), g_Git.GetGitLastErr(out, CGit::GIT_CMD_GETONEFILE), L"TortoiseGit", MB_OK);
 			return;
 		}
 		SetFileAttributes(file, FILE_ATTRIBUTE_READONLY);

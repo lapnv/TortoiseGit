@@ -244,7 +244,7 @@ void CGitLogList::ContextMenuAction(int cmd,int FirstSelect, int LastSelect, CMe
 				pathlist.AddPath(this->m_Path);
 				bool bSelectFilesForCommit = !!DWORD(CRegStdDWORD(L"Software\\TortoiseGit\\SelectFilesForCommit", TRUE));
 				CString str;
-				CAppUtils::Commit(CString(),false,str,
+				CAppUtils::Commit(GetSafeOwner()->GetSafeHwnd(), CString(), false, str,
 								  pathlist,selectedlist,bSelectFilesForCommit);
 				//this->Refresh();
 				this->GetParent()->PostMessage(WM_COMMAND,ID_LOGDLG_REFRESH,0);
@@ -252,7 +252,7 @@ void CGitLogList::ContextMenuAction(int cmd,int FirstSelect, int LastSelect, CMe
 			break;
 			case ID_MERGE_ABORT:
 			{
-				if (CAppUtils::MergeAbort())
+				if (CAppUtils::MergeAbort(GetSafeOwner()->GetSafeHwnd()))
 					this->GetParent()->PostMessage(WM_COMMAND,ID_LOGDLG_REFRESH, 0);
 			}
 			break;
@@ -494,7 +494,7 @@ void CGitLogList::ContextMenuAction(int cmd,int FirstSelect, int LastSelect, CMe
 				CString str=pSelLogEntry->m_CommitHash.ToString();
 				// try to get the tag
 				GetFirstEntryStartingWith(m_HashMap[pSelLogEntry->m_CommitHash], L"refs/tags/", str);
-				CAppUtils::Export(&str, &m_Path);
+				CAppUtils::Export(GetSafeOwner()->GetSafeHwnd(), &str, &m_Path);
 			}
 			break;
 		case ID_CREATE_BRANCH:
@@ -507,7 +507,7 @@ void CGitLogList::ContextMenuAction(int cmd,int FirstSelect, int LastSelect, CMe
 				else // try to guess remote branch in order to enable tracking
 					GetFirstEntryStartingWith(m_HashMap[pSelLogEntry->m_CommitHash], L"refs/remotes/", str);
 
-				CAppUtils::CreateBranchTag((cmd&0xFFFF) == ID_CREATE_TAG, &str);
+				CAppUtils::CreateBranchTag(GetSafeOwner()->GetSafeHwnd(), (cmd & 0xFFFF) == ID_CREATE_TAG, &str);
 				ReloadHashMap();
 				if (m_pFindDialog)
 					m_pFindDialog->RefreshList();
@@ -524,7 +524,7 @@ void CGitLogList::ContextMenuAction(int cmd,int FirstSelect, int LastSelect, CMe
 				else // try to guess remote branch in order to recommend good branch name and tracking
 					GetFirstEntryStartingWith(m_HashMap[pSelLogEntry->m_CommitHash], L"refs/remotes/", str);
 
-				CAppUtils::Switch(str);
+				CAppUtils::Switch(GetSafeOwner()->GetSafeHwnd(), str);
 			}
 			ReloadHashMap();
 			Invalidate();
@@ -538,7 +538,7 @@ void CGitLogList::ContextMenuAction(int cmd,int FirstSelect, int LastSelect, CMe
 				{
 					CString name = *branch;
 					CGit::GetShortName(*branch, name, L"refs/heads/");
-					CAppUtils::PerformSwitch(name);
+					CAppUtils::PerformSwitch(GetSafeOwner()->GetSafeHwnd(), name);
 				}
 				ReloadHashMap();
 				Invalidate();
@@ -548,7 +548,7 @@ void CGitLogList::ContextMenuAction(int cmd,int FirstSelect, int LastSelect, CMe
 		case ID_RESET:
 			{
 				CString str = pSelLogEntry->m_CommitHash.ToString();
-				if (CAppUtils::GitReset(&str))
+				if (CAppUtils::GitReset(GetSafeOwner()->GetSafeHwnd(), &str))
 				{
 					ResetWcRev(true);
 					ReloadHashMap();
@@ -772,12 +772,12 @@ void CGitLogList::ContextMenuAction(int cmd,int FirstSelect, int LastSelect, CMe
 			break;
 
 		case ID_STASH_SAVE:
-			if (CAppUtils::StashSave())
+			if (CAppUtils::StashSave(GetSafeOwner()->GetSafeHwnd()))
 				Refresh();
 			break;
 
 		case ID_STASH_POP:
-			if (CAppUtils::StashPop())
+			if (CAppUtils::StashPop(GetSafeOwner()->GetSafeHwnd()))
 				Refresh();
 			break;
 
@@ -786,7 +786,7 @@ void CGitLogList::ContextMenuAction(int cmd,int FirstSelect, int LastSelect, CMe
 			break;
 
 		case ID_REFLOG_STASH_APPLY:
-			CAppUtils::StashApply(pSelLogEntry->m_Ref);
+			CAppUtils::StashApply(GetSafeOwner()->GetSafeHwnd(), pSelLogEntry->m_Ref);
 			break;
 
 		case ID_REFLOG_DEL:
@@ -883,21 +883,21 @@ void CGitLogList::ContextMenuAction(int cmd,int FirstSelect, int LastSelect, CMe
 				if (!m_HashMap[last->m_CommitHash].empty())
 					lastGood = m_HashMap[last->m_CommitHash].at(0);
 
-				if (CAppUtils::BisectStart(lastGood, firstBad))
+				if (CAppUtils::BisectStart(GetSafeOwner()->GetSafeHwnd(), lastGood, firstBad))
 					Refresh();
 			}
 			break;
 		case ID_BISECTGOOD:
 			{
 				GitRev* first = m_arShownList.SafeGetAt(FirstSelect);
-				if (CAppUtils::BisectOperation(L"good", !first->m_CommitHash.IsEmpty() ? first->m_CommitHash.ToString() : L""))
+				if (CAppUtils::BisectOperation(GetSafeOwner()->GetSafeHwnd(), L"good", !first->m_CommitHash.IsEmpty() ? first->m_CommitHash.ToString() : L""))
 					Refresh();
 			}
 			break;
 		case ID_BISECTBAD:
 			{
 				GitRev* first = m_arShownList.SafeGetAt(FirstSelect);
-				if (CAppUtils::BisectOperation(L"bad", !first->m_CommitHash.IsEmpty() ? first->m_CommitHash.ToString() : L""))
+				if (CAppUtils::BisectOperation(GetSafeOwner()->GetSafeHwnd(), L"bad", !first->m_CommitHash.IsEmpty() ? first->m_CommitHash.ToString() : L""))
 					Refresh();
 			}
 			break;
@@ -912,13 +912,13 @@ void CGitLogList::ContextMenuAction(int cmd,int FirstSelect, int LastSelect, CMe
 				if (!rev->m_CommitHash.IsEmpty())
 					refs.AppendFormat(L" %s", (LPCTSTR)rev->m_CommitHash.ToString());
 			}
-			if (CAppUtils::BisectOperation(L"skip", refs))
+			if (CAppUtils::BisectOperation(GetSafeOwner()->GetSafeHwnd(), L"skip", refs))
 				Refresh();
 		}
 		break;
 		case ID_BISECTRESET:
 			{
-				if (CAppUtils::BisectOperation(L"reset"))
+				if (CAppUtils::BisectOperation(GetSafeOwner()->GetSafeHwnd(), L"reset"))
 					Refresh();
 			}
 			break;
@@ -938,19 +938,19 @@ void CGitLogList::ContextMenuAction(int cmd,int FirstSelect, int LastSelect, CMe
 				else
 					GetFirstEntryStartingWith(m_HashMap[pSelLogEntry->m_CommitHash], L"refs/heads/", guessAssociatedBranch);
 
-				if (CAppUtils::Push(guessAssociatedBranch))
+				if (CAppUtils::Push(GetSafeOwner()->GetSafeHwnd(), guessAssociatedBranch))
 					Refresh();
 			}
 			break;
 		case ID_PULL:
 			{
-				if (CAppUtils::Pull())
+				if (CAppUtils::Pull(GetSafeOwner()->GetSafeHwnd()))
 					Refresh();
 			}
 			break;
 		case ID_FETCH:
 			{
-				if (CAppUtils::Fetch())
+				if (CAppUtils::Fetch(GetSafeOwner()->GetSafeHwnd()))
 					Refresh();
 			}
 			break;
@@ -1034,7 +1034,7 @@ void CGitLogList::ContextMenuAction(int cmd,int FirstSelect, int LastSelect, CMe
 				else if (!m_HashMap[pSelLogEntry->m_CommitHash].empty())
 					str = m_HashMap[pSelLogEntry->m_CommitHash].at(0);
 				// we need an URL to complete this command, so error out if we can't get an URL
-				if(CAppUtils::Merge(&str))
+				if (CAppUtils::Merge(GetSafeOwner()->GetSafeHwnd(), &str))
 				{
 					this->Refresh();
 				}
@@ -1064,7 +1064,7 @@ void CGitLogList::ContextMenuAction(int cmd,int FirstSelect, int LastSelect, CMe
 						pathlist.AddPath(this->m_Path);
 						bool bSelectFilesForCommit = !!DWORD(CRegStdDWORD(L"Software\\TortoiseGit\\SelectFilesForCommit", TRUE));
 						CString str;
-						CAppUtils::Commit(CString(), false, str, pathlist, selectedlist, bSelectFilesForCommit);
+						CAppUtils::Commit(GetSafeOwner()->GetSafeHwnd(), CString(), false, str, pathlist, selectedlist, bSelectFilesForCommit);
 					}
 					this->Refresh();
 				}
@@ -1072,7 +1072,7 @@ void CGitLogList::ContextMenuAction(int cmd,int FirstSelect, int LastSelect, CMe
 			break;
 		case ID_EDITNOTE:
 			{
-				CAppUtils::EditNote(pSelLogEntry, &m_ProjectProperties);
+				CAppUtils::EditNote(GetSafeOwner()->GetSafeHwnd(), pSelLogEntry, &m_ProjectProperties);
 				this->SetItemState(FirstSelect,  0, LVIS_SELECTED);
 				this->SetItemState(FirstSelect,  LVIS_SELECTED, LVIS_SELECTED);
 			}

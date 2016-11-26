@@ -45,7 +45,7 @@ bool ImportPatchCommand::Execute()
 	}
 	else if (!orgPathList.IsEmpty() && !orgPathList[0].HasAdminDir())
 	{
-		CString str = CAppUtils::ChooseRepository(nullptr);
+		CString str = CAppUtils::ChooseRepository(hwndExplorer, nullptr);
 		if(str.IsEmpty())
 			return FALSE;
 

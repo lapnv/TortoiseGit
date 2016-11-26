@@ -209,7 +209,7 @@ BOOL CTortoiseProcApp::InitInstance()
 		}
 		return FALSE;
 	}
-	if (CAppUtils::GetMsysgitVersion() < 0x01090500)
+	if (CAppUtils::GetMsysgitVersion(nullptr) < 0x01090500)
 	{
 		int ret = CMessageBox::ShowCheck(nullptr, IDS_PROC_OLDMSYSGIT, IDS_APPNAME, 1, IDI_EXCLAMATION, IDS_PROC_GOTOMSYSGITWEBSITE, IDS_ABORTBUTTON, IDS_IGNOREBUTTON, L"OldMsysgitVersionWarning", IDS_PROC_NOTSHOWAGAINIGNORE);
 		if (ret == 1)

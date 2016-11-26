@@ -55,7 +55,7 @@ bool CommitCommand::Execute()
 		return false;
 	}
 
-	return !!CAppUtils::Commit(	parser.GetVal(L"bugid"),
+	return !!CAppUtils::Commit(hwndExplorer, parser.GetVal(L"bugid"),
 								parser.HasKey(L"wholeproject"),
 								sLogMsg,
 								pathList,
