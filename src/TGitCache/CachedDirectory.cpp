@@ -356,13 +356,14 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 
 	bool bRequestForSelf = false;
 	if(path.IsEquivalentToWithoutCase(m_directoryPath))
-		bRequestForSelf = true;
-
 	{
+		bRequestForSelf = true;
 		AutoLocker lock(m_critSec);
 		// HasAdminDir might modify m_directoryPath, so we need to do it synchronized
-		bIsVersionedPath = m_directoryPath.HasAdminDir(&sProjectRoot, true); // problem here, because m_directoryPath can be the parent of the repository if path.IsDirectory()
+		bIsVersionedPath = m_directoryPath.HasAdminDir(&sProjectRoot);
 	}
+	else
+		bIsVersionedPath = path.HasAdminDir(&sProjectRoot);
 
 	// In all most circumstances, we ask for the status of a member of this directory.
 	ATLASSERT(m_directoryPath.IsEquivalentToWithoutCase(path.GetContainingDirectory()) || bRequestForSelf);
@@ -373,13 +374,15 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 		CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": %s is not underversion control\n", path.GetWinPath());
 		if (m_ownStatus.GetEffectiveStatus() > git_wc_status_unversioned)
 			m_ownStatus.SetStatus(nullptr);
+		if (!m_entryCache.empty())
+			m_entryCache.clear();
 		return CStatusCacheEntry();
 	}
 
 	// We've not got this item in the cache - let's add it
 	// We never bother asking SVN for the status of just one file, always for its containing directory
 
-	if (m_directoryPath.IsAdminDir())
+	if (GitAdminDir::IsAdminDirPath(path.GetWinPathString())) // vs. if (m_directoryPath.IsAdminDir())
 	{
 		// We're being asked for the status of an .git directory
 		// It's not worth asking for this
