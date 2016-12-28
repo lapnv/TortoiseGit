@@ -87,6 +87,7 @@ bool CStatusCacheEntry::SaveToDisk(FILE* pFile) const
 
 bool CStatusCacheEntry::LoadFromDisk(FILE * pFile)
 {
+	return true;
 #define LOADVALUEFROMFILE(x) if (fread(&x, sizeof(x), 1, pFile)!=1) return false;
 	try
 	{

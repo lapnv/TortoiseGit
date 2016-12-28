@@ -54,8 +54,7 @@ void CGitStatusCache::Create()
 
 	m_pInstance->watcher.SetFolderCrawler(&m_pInstance->m_folderCrawler);
 
-	if (!CRegStdDWORD(L"Software\\TortoiseGit\\CacheSave", TRUE))
-		return;
+	return;
 
 #define LOADVALUEFROMFILE(x) if (fread(&x, sizeof(x), 1, pFile)!=1) goto exit;
 #define LOADVALUEFROMFILE2(x) if (fread(&x, sizeof(x), 1, pFile)!=1) goto error;
@@ -519,6 +518,7 @@ CStatusCacheEntry CGitStatusCache::GetStatusForPath(const CTGitPath& path, DWORD
 			{
 				AutoLocker lock(m_critSec);
 				m_mostRecentStatus = entry;
+				CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": GetStatusForPath %s %d %d\n", path.GetWinPath(), m_mostRecentStatus.GetEffectiveStatus(), bFetch);
 				return m_mostRecentStatus;
 			}
 		}

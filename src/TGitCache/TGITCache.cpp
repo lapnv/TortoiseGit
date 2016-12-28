@@ -660,8 +660,8 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
 			DisconnectNamedPipe(hPipe);
 			CTraceToOutputDebugString::Instance()(__FUNCTION__ ": Instance thread exited\n");
 			InterlockedDecrement(&nThreadCount);
-			if (nThreadCount == 0)
-				PostMessage(hWndHidden, WM_CLOSE, 0, 0);
+			/*if (nThreadCount == 0)
+				PostMessage(hWndHidden, WM_CLOSE, 0, 0);*/
 			return 1;
 		}
 
@@ -681,8 +681,8 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
 			DisconnectNamedPipe(hPipe);
 			CTraceToOutputDebugString::Instance()(__FUNCTION__ ": Instance thread exited\n");
 			InterlockedDecrement(&nThreadCount);
-			if (nThreadCount == 0)
-				PostMessage(hWndHidden, WM_CLOSE, 0, 0);
+			/*if (nThreadCount == 0)
+				PostMessage(hWndHidden, WM_CLOSE, 0, 0);*/
 			return 1;
 		}
 	}
@@ -695,8 +695,8 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
 	DisconnectNamedPipe(hPipe);
 	CTraceToOutputDebugString::Instance()(__FUNCTION__ ": Instance thread exited\n");
 	InterlockedDecrement(&nThreadCount);
-	if (nThreadCount == 0)
-		PostMessage(hWndHidden, WM_CLOSE, 0, 0);
+	/*if (nThreadCount == 0)
+		PostMessage(hWndHidden, WM_CLOSE, 0, 0);*/
 	return 0;
 }
 

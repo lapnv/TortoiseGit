@@ -28,6 +28,7 @@ CCachedDirectory::CCachedDirectory(void)
 	: m_currentFullStatus(git_wc_status_none)
 	, m_mostImportantFileStatus(git_wc_status_none)
 	, m_bRecursive(true)
+	, m_FetchingStatus(FALSE)
 {
 }
 
@@ -100,6 +101,7 @@ BOOL CCachedDirectory::SaveToDisk(FILE * pFile)
 
 BOOL CCachedDirectory::LoadFromDisk(FILE * pFile)
 {
+	return true;
 	AutoLocker lock(m_critSec);
 #define LOADVALUEFROMFILE(x) if (fread(&x, sizeof(x), 1, pFile)!=1) return false;
 	try
@@ -356,13 +358,28 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 
 	bool bRequestForSelf = false;
 	if(path.IsEquivalentToWithoutCase(m_directoryPath))
-	{
 		bRequestForSelf = true;
+
+	{
 		AutoLocker lock(m_critSec);
 		// HasAdminDir might modify m_directoryPath, so we need to do it synchronized
 		bIsVersionedPath = m_directoryPath.HasAdminDir(&sProjectRoot);
+		if (m_directoryPath.IsAdminDir())
+		{
+			// We're being asked for the status of an .git directory
+			// It's not worth asking for this
+			return CStatusCacheEntry();
+		}
 	}
-	else
+
+	if (!bRequestForSelf && path.GetUIFileOrDirectoryName() == L".git")
+	{
+		// We're being asked for the status of an .git directory
+		// It's not worth asking for this
+		return CStatusCacheEntry();
+	}
+
+	if (path.IsDirectory() && !bRequestForSelf)
 		bIsVersionedPath = path.HasAdminDir(&sProjectRoot);
 
 	// In all most circumstances, we ask for the status of a member of this directory.
@@ -372,9 +389,9 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 	if( !bIsVersionedPath)
 	{
 		CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": %s is not underversion control\n", path.GetWinPath());
-		if (m_ownStatus.GetEffectiveStatus() > git_wc_status_unversioned)
+		if (bRequestForSelf && m_ownStatus.GetEffectiveStatus() > git_wc_status_unversioned)
 			m_ownStatus.SetStatus(nullptr);
-		if (!m_entryCache.empty())
+		if (bRequestForSelf && !m_entryCache.empty())
 			m_entryCache.clear();
 		return CStatusCacheEntry();
 	}
@@ -382,22 +399,10 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 	// We've not got this item in the cache - let's add it
 	// We never bother asking SVN for the status of just one file, always for its containing directory
 
-	if (GitAdminDir::IsAdminDirPath(path.GetWinPathString())) // vs. if (m_directoryPath.IsAdminDir())
-	{
-		// We're being asked for the status of an .git directory
-		// It's not worth asking for this
-		return CStatusCacheEntry();
-	}
-
-
 	if(bFetch)
-	{
 		return GetStatusFromGit(path, sProjectRoot, bRequestForSelf);
-	}
 	else
-	{
 		return GetStatusFromCache(path, bRecursive);
-	}
 }
 
 CStatusCacheEntry CCachedDirectory::GetCacheStatusForMember(const CTGitPath& path)
@@ -413,6 +418,9 @@ CStatusCacheEntry CCachedDirectory::GetCacheStatusForMember(const CTGitPath& pat
 
 int CCachedDirectory::EnumFiles(const CTGitPath& path, CString sProjectRoot, const CString& sSubPath, bool isSelf)
 {
+	if (InterlockedExchange(&m_FetchingStatus, TRUE))
+		return -1;
+
 	CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": EnumFiles %s\n", path.GetWinPath());
 
 	// strip "\" at the end, otherwise cache lookups for drives do not work correctly
@@ -421,6 +429,8 @@ int CCachedDirectory::EnumFiles(const CTGitPath& path, CString sProjectRoot, con
 	GitStatus *pStatus = &CGitStatusCache::Instance().m_GitStatus;
 	UNREFERENCED_PARAMETER(pStatus);
 	git_wc_status_kind status = git_wc_status_none;
+
+	InterlockedExchange(&m_FetchingStatus, TRUE);
 
 	if (!path.IsDirectory())
 	{
@@ -478,6 +488,8 @@ int CCachedDirectory::EnumFiles(const CTGitPath& path, CString sProjectRoot, con
 			}
 		}
 	}
+
+	InterlockedExchange(&m_FetchingStatus, FALSE);
 
 	return 0;
 }
@@ -716,9 +728,9 @@ git_wc_status_kind CCachedDirectory::CalculateRecursiveStatus()
 void CCachedDirectory::UpdateCurrentStatus()
 {
 	git_wc_status_kind newStatus = CalculateRecursiveStatus();
-	CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": UpdateCurrentStatus %s new:%d old: %d\n",
+	/*CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": UpdateCurrentStatus %s new:%d old: %d\n",
 		m_directoryPath.GetWinPath(),
-		newStatus, m_currentFullStatus);
+		newStatus, m_currentFullStatus);*/
 
 	if (newStatus != m_currentFullStatus && m_ownStatus.IsDirectory())
 	{

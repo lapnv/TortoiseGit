@@ -136,21 +136,13 @@ void CShellUpdater::WorkerThread()
 			CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": shell notification for %s\n", workingPath.GetWinPath());
 			if (workingPath.IsDirectory())
 			{
-				// check if the path is monitored by the watcher. If it isn't, then we have to invalidate the cache
-				// for that path and add it to the watcher.
-				if (!CGitStatusCache::Instance().IsPathWatched(workingPath))
-				{
-					if (workingPath.HasAdminDir())
-						CGitStatusCache::Instance().AddPathToWatch(workingPath);
-				}
 				// first send a notification about a sub folder change, so explorer doesn't discard
 				// the folder notification. Since we only know for sure that the git admin
 				// dir is present, we send a notification for that folder.
 				CString admindir(workingPath.GetWinPathString());
 				admindir += L'\\';
 				admindir += GitAdminDir::GetAdminDirName();
-				if(::PathFileExists(admindir))
-					SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATH | SHCNF_FLUSHNOWAIT, (LPCTSTR)admindir, nullptr);
+				SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATH | SHCNF_FLUSHNOWAIT, (LPCTSTR)admindir, nullptr);
 
 				SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATH | SHCNF_FLUSHNOWAIT, workingPath.GetWinPath(), nullptr);
 				// Sending an UPDATEDIR notification somehow overwrites/deletes the UPDATEITEM message. And without
