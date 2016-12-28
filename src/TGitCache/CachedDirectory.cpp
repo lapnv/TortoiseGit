@@ -341,10 +341,10 @@ CStatusCacheEntry CCachedDirectory::GetStatusFromGit(const CTGitPath &path, cons
 	else
 	{
 		EnumFiles(path, sProjectRoot, subpaths, isSelf);
-		UpdateCurrentStatus();
-		if (!path.IsDirectory())
-			return GetCacheStatusForMember(path);
-		return CStatusCacheEntry(m_ownStatus);
+		//UpdateCurrentStatus();
+		//if (!path.IsDirectory())
+			//return GetCacheStatusForMember(path);
+		//return CStatusCacheEntry(m_ownStatus);
 	}
 }
 
@@ -355,6 +355,7 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 {
 	CString sProjectRoot;
 	bool bIsVersionedPath;
+	bool bThisDirectoryIsUnversioned = false;
 
 	bool bRequestForSelf = false;
 	if(path.IsEquivalentToWithoutCase(m_directoryPath))
@@ -364,12 +365,13 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 		AutoLocker lock(m_critSec);
 		// HasAdminDir might modify m_directoryPath, so we need to do it synchronized
 		bIsVersionedPath = m_directoryPath.HasAdminDir(&sProjectRoot);
-		if (m_directoryPath.IsAdminDir())
-		{
-			// We're being asked for the status of an .git directory
-			// It's not worth asking for this
-			return CStatusCacheEntry();
-		}
+	}
+
+	if (m_directoryPath.IsAdminDir())
+	{
+		// We're being asked for the status of an .git directory
+		// It's not worth asking for this
+		return CStatusCacheEntry();
 	}
 
 	if (!bRequestForSelf && path.GetUIFileOrDirectoryName() == L".git")
@@ -378,6 +380,210 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 		// It's not worth asking for this
 		return CStatusCacheEntry();
 	}
+	
+	CString strCacheKey;
+
+	if (!bIsVersionedPath)
+	{
+		// We are a folder which is not in a working copy
+		bThisDirectoryIsUnversioned = true;
+		m_ownStatus.SetStatus(nullptr);
+
+		// If a user removes the .svn directory, we get here with m_entryCache
+		// not being empty, but still us being unversioned
+		if (!m_entryCache.empty())
+		{
+			m_entryCache.clear();
+		}
+		ATLASSERT(m_entryCache.empty());
+
+		// However, a member *DIRECTORY* might be the top of WC
+		// so we need to ask them to get their own status
+		if (!path.IsDirectory())
+		{
+			if ((PathFileExists(path.GetWinPath())) || (bRequestForSelf))
+				return CStatusCacheEntry();
+			// the entry doesn't exist anymore!
+			// but we can't remove it from the cache here:
+			// the GetStatusForMember() method is called only with a read
+			// lock and not a write lock!
+			// So mark it for crawling, and let the crawler remove it
+			// later
+			CGitStatusCache::Instance().AddFolderForCrawling(path.GetContainingDirectory());
+			return CStatusCacheEntry();
+		}
+		else
+		{
+			// If we're in the special case of a directory being asked for its own status
+			// and this directory is unversioned, then we should just return that here
+			if (bRequestForSelf)
+				return CStatusCacheEntry();
+		}
+
+		if (CGitStatusCache::Instance().GetDirectoryCacheEntryNoCreate(path) != NULL)
+		{
+			// We don't have directory status in our cache
+			// Ask the directory if it knows its own status
+			CCachedDirectory* dirEntry = CGitStatusCache::Instance().GetDirectoryCacheEntry(path);
+			if ((dirEntry) && (dirEntry->IsOwnStatusValid()))
+			{
+				// To keep recursive status up to date, we'll request that children are all crawled again
+				// We have to do this because the directory watcher isn't very reliable (especially under heavy load)
+				// and also has problems with SUBSTed drives.
+				// If nothing has changed in those directories, this crawling is fast and only
+				// accesses two files for each directory.
+				if (bRecursive)
+				{
+					AutoLocker lock(dirEntry->m_critSec);
+					for (auto it = dirEntry->m_childDirectories.cbegin(); it != dirEntry->m_childDirectories.cend(); ++it)
+					{
+						ATLASSERT(it->first.IsDirectory());
+						CGitStatusCache::Instance().AddFolderForCrawling(it->first);
+					}
+				}
+
+				return dirEntry->GetOwnStatus(bRecursive);
+			}
+		}
+		else
+		{
+			{
+				// if we currently are fetching the status of the directory
+				// we want the status for, we just return an empty entry here
+				// and don't wait for that fetching to finish.
+				// That's because fetching the status can take a *really* long
+				// time (e.g. if a commit is also in progress on that same
+				// directory), and we don't want to make the explorer appear
+				// to hang.
+				if ((!bFetch) && (m_FetchingStatus))
+				{
+					if (m_directoryPath.IsAncestorOf(path))
+					{
+						m_currentFullStatus = m_mostImportantFileStatus = git_wc_status_none;
+						return GetCacheStatusForMember(path);
+					}
+				}
+			}
+			// Look up a file in our own cache
+			AutoLocker lock(m_critSec);
+			CString strCacheKey = GetCacheKey(path);
+			CacheEntryMap::iterator itMap = m_entryCache.find(strCacheKey);
+			if (itMap != m_entryCache.end())
+			{
+				// We've hit the cache - check for timeout
+				if (!itMap->second.HasExpired((LONGLONG)GetTickCount64()))
+				{
+					if (itMap->second.DoesFileTimeMatch(path.GetLastWriteTime()))
+					{
+						if ((itMap->second.GetEffectiveStatus() != git_wc_status_missing) || (!PathFileExists(path.GetWinPath())))
+						{
+							// Note: the filetime matches after a modified has been committed too.
+							// So in that case, we would return a wrong status (e.g. 'modified' instead
+							// of 'normal') here.
+							return itMap->second;
+						}
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		if ((!bFetch) && (m_FetchingStatus))
+		{
+			if (m_directoryPath.IsAncestorOf(path))
+			{
+				// returning empty status (status fetch in progress)
+				// also set the status to 'none' to have the status change and
+				// the shell updater invoked in the crawler
+				m_currentFullStatus = m_mostImportantFileStatus = git_wc_status_none;
+				CGitStatusCache::Instance().AddFolderForCrawling(m_directoryPath.GetDirectory());
+				return GetCacheStatusForMember(path);
+			}
+		}
+		// if we're fetching the status for the explorer,
+		// we don't refresh the status but use the one
+		// we already have (to save time and make the explorer
+		// more responsive in stress conditions).
+		// We leave the refreshing to the crawler.
+		if ((!bFetch) && (bIsVersionedPath)) // TODO!!!
+		{
+			CGitStatusCache::Instance().AddFolderForCrawling(m_directoryPath.GetDirectory());
+			return GetCacheStatusForMember(path);
+		}
+		AutoLocker lock(m_critSec);
+		m_entryCache.clear();
+		strCacheKey = GetCacheKey(path);
+	}
+
+	// We've not got this item in the cache - let's add it
+	// We never bother asking SVN for the status of just one file, always for its containing directory
+
+	{
+		if ((!bFetch) && (m_FetchingStatus))
+		{
+			if (m_directoryPath.IsAncestorOf(path))
+			{
+				m_currentFullStatus = m_mostImportantFileStatus = git_wc_status_none;
+				return GetCacheStatusForMember(path);
+			}
+		}
+	}
+
+	{
+		AutoLocker lock(m_critSec);
+		m_mostImportantFileStatus = git_wc_status_none;
+		m_childDirectories.clear();
+		m_entryCache.clear();
+		m_ownStatus.SetStatus(nullptr);
+	}
+	if (!bThisDirectoryIsUnversioned)
+	{
+		GetStatusFromGit(path, sProjectRoot, bRequestForSelf);
+		//if (!SvnUpdateMembersStatus())
+		//{
+			//return CStatusCacheEntry();
+		//}
+	}
+	// Now that we've refreshed our SVN status, we can see if it's
+	// changed the 'most important' status value for this directory.
+	// If it has, then we should tell our parent
+	UpdateCurrentStatus();
+
+	if (path.IsDirectory())
+	{
+		CCachedDirectory * dirEntry = CGitStatusCache::Instance().GetDirectoryCacheEntry(path);
+		if ((dirEntry) && (dirEntry->IsOwnStatusValid()))
+		{
+			//CSVNStatusCache::Instance().AddFolderForCrawling(path);
+			return dirEntry->GetOwnStatus(bRecursive);
+		}
+
+		// If the status *still* isn't valid here, it means that
+		// the current directory is unversioned, and we shall need to ask its children for info about themselves
+		if ((dirEntry) && (dirEntry != this))
+			return dirEntry->GetStatusForMember(path, bRecursive);
+		// add the path for crawling: if it's really unversioned, the crawler will
+		// only check for the admin dir and do nothing more. But if it is
+		// versioned (could happen in a nested layout) the crawler will update its
+		// status correctly
+		CGitStatusCache::Instance().AddFolderForCrawling(path);
+		return CStatusCacheEntry();
+	}
+	else
+	{
+		CacheEntryMap::iterator itMap = m_entryCache.find(strCacheKey);
+		if (itMap != m_entryCache.end())
+		{
+			return itMap->second;
+		}
+	}
+
+	//AddEntry(path, nullptr);
+	return CStatusCacheEntry();
+
+	
+
 
 	if (path.IsDirectory() && !bRequestForSelf)
 		bIsVersionedPath = path.HasAdminDir(&sProjectRoot);
@@ -450,6 +656,8 @@ int CCachedDirectory::EnumFiles(const CTGitPath& path, CString sProjectRoot, con
 			// build new files status cache
 			m_entryCache_tmp.clear();
 		}
+		else
+			ATLASSERT(FALSE);
 
 		m_mostImportantFileStatus = git_wc_status_none;
 		pStatus->EnumDirStatus(sProjectRoot, sSubPath, &status, TRUE, false, true, GetStatusCallback, this);

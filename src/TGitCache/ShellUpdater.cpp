@@ -69,6 +69,7 @@ void CShellUpdater::Initialise()
 void CShellUpdater::AddPathForUpdate(const CTGitPath& path)
 {
 	{
+		return;
 		AutoLocker lock(m_critSec);
 
 		m_pathsToUpdate.push_back(path);

@@ -563,6 +563,9 @@ CStatusCacheEntry CGitStatusCache::GetStatusForPath(const CTGitPath& path, DWORD
 
 void CGitStatusCache::AddFolderForCrawling(const CTGitPath& path)
 {
+	static bool doit = true;
+	if (!doit)
+		return;
 	m_folderCrawler.AddDirectoryForUpdate(path);
 }
 
