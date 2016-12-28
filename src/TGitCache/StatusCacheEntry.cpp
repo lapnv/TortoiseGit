@@ -131,6 +131,8 @@ void CStatusCacheEntry::SetStatus(const git_wc_status2_t* pGitStatus)
 			m_bAssumeValid = pGitStatus->assumeValid;
 			m_bSkipWorktree = pGitStatus->skipWorktree;
 		}
+		else
+			int bla = 6;
 	}
 	m_discardAtTime = GetTickCount64() + cachetimeout;
 	m_bSet = true;
