@@ -357,10 +357,6 @@ void CFolderCrawler::WorkerThread()
 							nCurrentCrawledpathIndex = 0;
 					}
 					InvalidateRect(hWndHidden, nullptr, FALSE);
-					// HasAdminDir() already checks if the path points to a dir
-					DWORD flags = TGITCACHE_FLAGS_FOLDERISKNOWN;
-					flags |= (workingPath.IsDirectory() ? TGITCACHE_FLAGS_ISFOLDER : 0);
-					flags |= (bRecursive ? TGITCACHE_FLAGS_RECUSIVE_STATUS : 0);
 					{
 						CAutoReadLock readLock(CGitStatusCache::Instance().GetGuard());
 						// Invalidate the cache of folders manually. The cache of files is invalidated
@@ -370,13 +366,11 @@ void CFolderCrawler::WorkerThread()
 						{
 							CCachedDirectory * cachedDir = CGitStatusCache::Instance().GetDirectoryCacheEntry(workingPath);
 							if (cachedDir)
+							{
 								cachedDir->Invalidate();
-						}
-						CStatusCacheEntry ce = CGitStatusCache::Instance().GetStatusForPath(workingPath, flags);
-						if (ce.GetEffectiveStatus() > git_wc_status_unversioned)
-						{
-							CGitStatusCache::Instance().UpdateShell(workingPath);
-							CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": shell update in folder crawler for %s\n", workingPath.GetWinPath());
+								if (cachedDir->GetStatusForMember(workingPath, bRecursive).GetEffectiveStatus() > git_wc_status_unversioned)
+									CGitStatusCache::Instance().UpdateShell(workingPath);
+							}
 						}
 					}
 					AutoLocker lock(m_critSec);

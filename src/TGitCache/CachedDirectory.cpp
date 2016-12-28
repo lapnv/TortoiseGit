@@ -392,9 +392,7 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 		// If a user removes the .svn directory, we get here with m_entryCache
 		// not being empty, but still us being unversioned
 		if (!m_entryCache.empty())
-		{
 			m_entryCache.clear();
-		}
 		ATLASSERT(m_entryCache.empty());
 
 		// However, a member *DIRECTORY* might be the top of WC
@@ -420,7 +418,7 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 				return CStatusCacheEntry();
 		}
 
-		if (CGitStatusCache::Instance().GetDirectoryCacheEntryNoCreate(path) != NULL)
+		if (CGitStatusCache::Instance().GetDirectoryCacheEntryNoCreate(path))
 		{
 			// We don't have directory status in our cache
 			// Ask the directory if it knows its own status
@@ -508,12 +506,19 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 		// We leave the refreshing to the crawler.
 		if ((!bFetch) && (bIsVersionedPath)) // TODO!!!
 		{
+			{
+				AutoLocker lock(m_critSec);
+				auto it = m_childDirectories.find(path);
+				if (it != m_childDirectories.cend())
+					return it->second;
+			}
 			CGitStatusCache::Instance().AddFolderForCrawling(m_directoryPath.GetDirectory());
 			return GetCacheStatusForMember(path);
 		}
 		AutoLocker lock(m_critSec);
-		m_entryCache.clear();
+		//m_entryCache.clear();
 		strCacheKey = GetCacheKey(path);
+		//m_ownStatus.SetStatus(nullptr);
 	}
 
 	// We've not got this item in the cache - let's add it
@@ -531,14 +536,16 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 	}
 
 	{
-		AutoLocker lock(m_critSec);
+		/*AutoLocker lock(m_critSec);
 		m_mostImportantFileStatus = git_wc_status_none;
 		m_childDirectories.clear();
 		m_entryCache.clear();
-		m_ownStatus.SetStatus(nullptr);
+		m_ownStatus.SetStatus(nullptr);*/
 	}
-	if (!bThisDirectoryIsUnversioned)
+	if (!bThisDirectoryIsUnversioned && bRequestForSelf)
 	{
+		
+		// here shit might happen, that a subdir gets through
 		GetStatusFromGit(path, sProjectRoot, bRequestForSelf);
 		//if (!SvnUpdateMembersStatus())
 		//{
@@ -561,7 +568,7 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 
 		// If the status *still* isn't valid here, it means that
 		// the current directory is unversioned, and we shall need to ask its children for info about themselves
-		if ((dirEntry) && (dirEntry != this))
+		if ((dirEntry) && (dirEntry != this)) // should this happen?
 			return dirEntry->GetStatusForMember(path, bRecursive);
 		// add the path for crawling: if it's really unversioned, the crawler will
 		// only check for the admin dir and do nothing more. But if it is
@@ -581,8 +588,6 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 
 	//AddEntry(path, nullptr);
 	return CStatusCacheEntry();
-
-	
 
 
 	if (path.IsDirectory() && !bRequestForSelf)
