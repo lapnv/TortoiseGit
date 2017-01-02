@@ -477,7 +477,7 @@ VOID GetAnswerToRequest(const TGITCacheRequest* pRequest, TGITCacheResponse* pRe
 	else
 		path.SetFromWin(pRequest->path);
 
-	if (!CTGitPath(L"C:\\Users\\strickroth\\Desktop\\TortoiseGit").IsAncestorOf(path))
+	if (!CTGitPath(L"D:\\").IsAncestorOf(path))
 	{
 		CStatusCacheEntry entry;
 		entry.BuildCacheResponse(*pReply, *pResponseLength);

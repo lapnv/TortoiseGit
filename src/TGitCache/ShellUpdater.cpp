@@ -22,6 +22,7 @@
 #include <ShlObj.h>
 #include "GitAdminDir.h"
 #include "GitStatusCache.h"
+#include <unordered_set>
 
 CShellUpdater::CShellUpdater(void)
 	: m_bRunning(FALSE)
@@ -69,7 +70,7 @@ void CShellUpdater::Initialise()
 void CShellUpdater::AddPathForUpdate(const CTGitPath& path)
 {
 	{
-		return;
+		//return;
 		AutoLocker lock(m_critSec);
 
 		m_pathsToUpdate.push_back(path);
