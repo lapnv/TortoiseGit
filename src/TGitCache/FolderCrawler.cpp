@@ -362,16 +362,11 @@ void CFolderCrawler::WorkerThread()
 						// Invalidate the cache of folders manually. The cache of files is invalidated
 						// automatically if the status is asked for it and the file times don't match
 						// anymore, so we don't need to manually invalidate those.
-						if (workingPath.IsDirectory())
-						{
-							CCachedDirectory * cachedDir = CGitStatusCache::Instance().GetDirectoryCacheEntry(workingPath);
-							if (cachedDir)
-							{
-								cachedDir->Invalidate();
-								if (cachedDir->GetStatusForMember(workingPath, bRecursive).GetEffectiveStatus() > git_wc_status_unversioned)
-									CGitStatusCache::Instance().UpdateShell(workingPath);
-							}
-						}
+						CCachedDirectory* cachedDir = CGitStatusCache::Instance().GetDirectoryCacheEntry(workingPath.GetDirectory());
+						if (cachedDir && workingPath.IsDirectory())
+							cachedDir->Invalidate();
+						if (cachedDir && cachedDir->GetStatusForMember(workingPath, bRecursive).GetEffectiveStatus() > git_wc_status_unversioned)
+							CGitStatusCache::Instance().UpdateShell(workingPath);
 					}
 					AutoLocker lock(m_critSec);
 					m_pathsToUpdate.erase(workingPath);

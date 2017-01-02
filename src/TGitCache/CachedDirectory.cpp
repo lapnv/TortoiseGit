@@ -530,8 +530,8 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 		}
 	}
 
-	if (!bRequestForSelf)
-		ATLASSERT(false);
+	//if (!bRequestForSelf) // this might happen if we changed a single file
+		//ATLASSERT(false);
 
 	GetStatusFromGit(path, sProjectRoot, bRequestForSelf);
 	// Now that we've refreshed our SVN status, we can see if it's
