@@ -360,7 +360,7 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 		bRequestForSelf = true;
 		AutoLocker lock(m_critSec);
 		// HasAdminDir might modify m_directoryPath, so we need to do it synchronized
-		bIsVersionedPath = m_directoryPath.HasAdminDir(&sProjectRoot);
+		bIsVersionedPath = m_directoryPath.HasAdminDir(&sProjectRoot, bFetch);
 	}
 	else
 		bIsVersionedPath = path.HasAdminDir(&sProjectRoot);
@@ -461,7 +461,8 @@ int CCachedDirectory::EnumFiles(const CTGitPath& path, CString sProjectRoot, con
 		}
 		else
 		{
-			if (::PathFileExists(m_directoryPath.GetWinPathString() + L"\\.git")) {
+			if (CTGitPath::ArePathStringsEqual(sProjectRoot, m_directoryPath.GetWinPathString()))
+			{
 				git_wc_status2_t status2;
 				status2.text_status = status2.prop_status = git_wc_status_normal;
 				m_ownStatus.SetStatus(&status2);
@@ -595,14 +596,6 @@ BOOL CCachedDirectory::GetStatusCallback(const CString & path, git_wc_status_kin
 					pThis->m_mostImportantFileStatus = GitStatus::GetMoreImportant(pThis->m_mostImportantFileStatus, git_wc_status_deleted);
 				}
 
-				if ( status <  git_wc_status_normal)
-				{
-					if (::PathFileExists(path + L"\\.git"))
-					{ // this is submodule
-						CTraceToOutputDebugString::Instance()(_T(__FUNCTION__) L": skip submodule %s\n", (LPCTSTR)path);
-						return FALSE;
-					}
-				}
 				if (pThis->m_bRecursive)
 				{
 					// Add any versioned directory, which is not our 'self' entry, to the list for having its status updated
@@ -648,7 +641,23 @@ BOOL CCachedDirectory::GetStatusCallback(const CString & path, git_wc_status_kin
 					// the child directory is not in the cache. Create a new entry for it in the cache which is
 					// initially 'unversioned'. But we added that directory to the crawling list above, which
 					// means the cache will be updated soon.
-					CGitStatusCache::Instance().GetDirectoryCacheEntry(gitPath);
+					CCachedDirectory* cdir = CGitStatusCache::Instance().GetDirectoryCacheEntry(gitPath);
+					if (cdir && s == git_wc_status_unversioned)
+					{
+						// we have an unversioned repository in a working tree (not a submodule)
+						bool isOtherRepo;
+						{
+							CString root1, root2;
+							AutoLocker lock(cdir->m_critSec);
+							isOtherRepo = pThis->m_directoryPath.HasAdminDir(&root1) && cdir->m_directoryPath.HasAdminDir(&root2) && root1 != root2;
+						}
+						if (isOtherRepo)
+						{
+							s = git_wc_status_normal;
+							cdir->m_ownStatus = git_wc_status_normal;
+							cdir->m_ownStatus.SetKind(git_node_dir);
+						}
+					}
 
 					AutoLocker lock(pThis->m_critSec);
 					pThis->m_childDirectories[gitPath.GetWinPathString()] = s;
