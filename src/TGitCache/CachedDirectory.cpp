@@ -630,13 +630,12 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 					AutoLocker lock(dirEntry->m_critSec);
 					for (auto it = dirEntry->m_childDirectories.cbegin(); it != dirEntry->m_childDirectories.cend(); ++it)
 					{
-						ATLASSERT(it->first.IsDirectory());
 						CGitStatusCache::Instance().AddFolderForCrawling(it->first);
 					}
 				}
 			{
 				AutoLocker lock(m_critSec);
-				auto it = m_childDirectories.find(path);
+				auto it = m_childDirectories.find(path.GetWinPathString());
 				if (it != m_childDirectories.cend())
 					return it->second;
 			}
@@ -657,7 +656,7 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 				{
 					{
 						AutoLocker lock(m_critSec);
-						auto it = m_childDirectories.find(path);
+						auto it = m_childDirectories.find(path.GetWinPathString());
 						if (it != m_childDirectories.cend())
 							return it->second;
 					}
@@ -697,7 +696,7 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 		{
 			{
 				AutoLocker lock(m_critSec);
-				auto it = m_childDirectories.find(path);
+				auto it = m_childDirectories.find(path.GetWinPathString());
 				if (it != m_childDirectories.cend())
 					return it->second;
 			}
@@ -720,7 +719,7 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 		{
 			{
 				AutoLocker lock(m_critSec);
-				auto it = m_childDirectories.find(path);
+				auto it = m_childDirectories.find(path.GetWinPathString());
 				if (it != m_childDirectories.cend())
 					return it->second;
 			}
