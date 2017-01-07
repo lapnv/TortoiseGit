@@ -893,15 +893,13 @@ int CCachedDirectory::EnumFiles(const CTGitPath& path, CString sProjectRoot, con
 		//m_ownStatus.SetKind(git_node_dir);
 		if (m_mostImportantFileStatus > git_wc_status_unversioned)
 		{
-			git_wc_status2_t status2 = { git_wc_status_unversioned, git_wc_status_unversioned, false, false };
-			status2.text_status = status2.prop_status = git_wc_status_normal;
+			git_wc_status2_t status2 = { git_wc_status_normal, git_wc_status_normal, false, false };
 			m_ownStatus.SetStatus(&status2);
 		}
 		else
 		{
 			if (::PathFileExists(m_directoryPath.GetWinPathString() + L"\\.git")) {
-				git_wc_status2_t status2 = { git_wc_status_unversioned, git_wc_status_unversioned, false, false };
-				status2.text_status = status2.prop_status = git_wc_status_normal;
+				git_wc_status2_t status2 = { git_wc_status_normal, git_wc_status_normal, false, false };
 				m_ownStatus.SetStatus(&status2);
 			}
 			else
