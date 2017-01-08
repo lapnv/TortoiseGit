@@ -237,9 +237,7 @@ void CCachedDirectory::GetStatusFromGit(const CTGitPath& path, const CString& sP
 					dirEntry->m_ownStatus.SetStatus(&status2);
 					dirEntry->m_currentFullStatus = status2.text_status;
 				}
-				return;
 			}
-
 		}
 		else /* path is file */
 		{
@@ -257,17 +255,12 @@ void CCachedDirectory::GetStatusFromGit(const CTGitPath& path, const CString& sP
 				status2.text_status = status2.prop_status =
 					(isignore? git_wc_status_ignored:git_wc_status_unversioned);
 				AddEntry(path, &status2);
-				return;
-			}
-			else
-			{
-				return;
 			}
 		}
 		return;
 	}
-	else
-		EnumFiles(path, sProjectRoot, subpaths, isSelf);
+
+	EnumFiles(path, sProjectRoot, subpaths, isSelf);
 }
 
 /// bFetch is true, fetch all status, call by crawl.
@@ -460,36 +453,6 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 	UpdateCurrentStatus();
 
 	CString l = path.GetWinPathString();
-	return m_currentFullStatus;
-
-	if (path.IsDirectory())
-	{
-		CCachedDirectory * dirEntry = CGitStatusCache::Instance().GetDirectoryCacheEntry(path);
-		if ((dirEntry) && (dirEntry->IsOwnStatusValid()))
-		{
-			//CSVNStatusCache::Instance().AddFolderForCrawling(path);
-			return dirEntry->GetOwnStatus(bRecursive);
-		}
-
-		// If the status *still* isn't valid here, it means that
-		// the current directory is unversioned, and we shall need to ask its children for info about themselves
-		if ((dirEntry) && (dirEntry != this)) // should this happen?
-			return dirEntry->GetStatusForMember(path, bRecursive, false);
-		// add the path for crawling: if it's really unversioned, the crawler will
-		// only check for the admin dir and do nothing more. But if it is
-		// versioned (could happen in a nested layout) the crawler will update its
-		// status correctly
-		CGitStatusCache::Instance().AddFolderForCrawling(path);
-		return CStatusCacheEntry();
-	}
-	else
-	{
-/*		CacheEntryMap::iterator itMap = m_entryCache.find(strCacheKey);
-		if (itMap != m_entryCache.end())
-			return itMap->second;*/
-	}
-
-	//AddEntry(path, nullptr);
 	return m_currentFullStatus;
 }
 
