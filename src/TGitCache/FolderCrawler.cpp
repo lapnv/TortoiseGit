@@ -416,10 +416,11 @@ void CFolderCrawler::WorkerThread()
 						nCurrentCrawledpathIndex = 0;
 				}
 				InvalidateRect(hWndHidden, nullptr, FALSE);
+				CCachedDirectory* cachedDir = nullptr;
 				{
 					CAutoReadLock readLock(CGitStatusCache::Instance().GetGuard());
 					// Now, we need to visit this folder, to make sure that we know its 'most important' status
-					CCachedDirectory * cachedDir = CGitStatusCache::Instance().GetDirectoryCacheEntry(workingPath.GetDirectory());
+					cachedDir = CGitStatusCache::Instance().GetDirectoryCacheEntry(workingPath.GetDirectory());
 					// check if the path is monitored by the watcher. If it isn't, then we have to invalidate the cache
 					// for that path and add it to the watcher.
 					if (!CGitStatusCache::Instance().IsPathWatched(workingPath))
@@ -439,9 +440,9 @@ void CFolderCrawler::WorkerThread()
 							cachedDir = nullptr;
 						}
 					}
-					if (cachedDir)
-						cachedDir->RefreshStatus(bRecursive);
 				}
+				if (cachedDir)
+					cachedDir->RefreshStatus(bRecursive);
 
 				// While refreshing the status, we could get another crawl request for the same folder.
 				// This can happen if the crawled folder has a lower status than one of the child folders

@@ -375,8 +375,10 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 	// to hang.
 	if (!bFetch)
 	{
-		if (!IsOwnStatusValid())
+		if (!IsOwnStatusValid() && !m_FetchingStatus) // and not already fetching
 			CGitStatusCache::Instance().AddFolderForCrawling(path);
+		else
+			int bla = 65;
 		if (bRequestForSelf)
 		{
 			if (!m_ownStatus.IsVersioned())
@@ -415,7 +417,10 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 					return dirEntry->GetOwnStatus(bRecursive);
 				}
 			}
-			CGitStatusCache::Instance().AddFolderForCrawling(path);
+			if (!m_FetchingStatus)
+				CGitStatusCache::Instance().AddFolderForCrawling(path);
+			else
+				int bla2 = 55;
 		}
 
 		//All file ignored if under ignore directory
@@ -426,13 +431,13 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 
 
 		//CGitStatusCache::Instance().AddFolderForCrawling(path.GetContainingDirectory()); if not found?!
-		return GetCacheStatusForMember(path);
+		//return GetCacheStatusForMember(path);
 
 		// TODO???
 
 		// Look up a file in our own cache
-		AutoLocker lock(m_critSec);
 		CString strCacheKey = GetCacheKey(path);
+		AutoLocker lock(m_critSec);
 		CacheEntryMap::iterator itMap = m_entryCache.find(strCacheKey);
 		if (itMap != m_entryCache.end())
 		{
@@ -451,6 +456,7 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 				}
 			}
 		}
+		return CStatusCacheEntry(git_wc_status_unknown);
 	}
 
 	//if (!bRequestForSelf) // this might happen if we changed a single file
@@ -462,6 +468,7 @@ CStatusCacheEntry CCachedDirectory::GetStatusForMember(const CTGitPath& path, bo
 	// If it has, then we should tell our parent
 	UpdateCurrentStatus();
 
+	CString l = path.GetWinPathString();
 	return m_currentFullStatus;
 
 	if (path.IsDirectory())
